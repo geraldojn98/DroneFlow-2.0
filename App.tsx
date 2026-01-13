@@ -1,4 +1,5 @@
 
+import { createRoot } from 'react-dom/client';
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   LayoutDashboard, Calendar as CalendarIcon, Users, DollarSign, Plus, 
@@ -396,3 +397,13 @@ const App: React.FC = () => {
 };
 
 export default App;
+
+const container = document.getElementById('root');
+if (container) {
+  const root = createRoot(container);
+  root.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+}
