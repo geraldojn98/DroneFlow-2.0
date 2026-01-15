@@ -10,6 +10,8 @@ export const generateClosingPDF = (data: ClosedMonth) => {
   const doc = new jsPDF() as any;
   const pageWidth = doc.internal.pageSize.width;
 
+  const formatHectares = (val: number) => val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   // Header
   doc.setFillColor(15, 23, 42); // slate-900
   doc.rect(0, 0, pageWidth, 40, 'F');
@@ -33,7 +35,7 @@ export const generateClosingPDF = (data: ClosedMonth) => {
   
   const summaryData = [
     ['Indicador', 'Valor'],
-    ['Hectares Totais', `${data.hectares.toLocaleString()} ha`],
+    ['Hectares Totais', `${formatHectares(data.hectares)} ha`],
     ['Faturamento Bruto', `R$ ${data.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
     ['Custos Totais', `R$ ${data.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
     ['Resultado Líquido', `R$ ${data.netProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]
@@ -108,7 +110,7 @@ export const generateAIReportPDF = (data: any) => {
   
   const paramsData = [
     ['Parâmetro', 'Valor'],
-    ['Área Total', `${data.params.hectares} Hectares`],
+    ['Área Total', `${data.params.hectares} ha`],
     ['Vazão do Drone', `${data.params.flowRate} L/ha`],
     ['Capacidade Misturador', `${data.params.tankSize} Litros`]
   ];
