@@ -61,6 +61,7 @@ export interface Expense {
   description: string;
   amount: number;
   category: string;
+  paidBy: 'Empresa' | 'Geraldo' | 'Kaká' | 'Patrick';
   closed?: boolean;
 }
 
@@ -75,9 +76,10 @@ export interface Contribution {
 export interface PartnerSummary {
   name: string;
   shortName: string;
-  grossProfit: number;
-  deductions: number;
-  netProfit: number;
+  grossProfit: number; // 25% share
+  deductions: number; // hectare rate
+  reimbursements: number; // expenses paid by partner
+  netProfit: number; // (gross + reimbursements) - deductions
   salary?: number;
   hectares?: number;
 }

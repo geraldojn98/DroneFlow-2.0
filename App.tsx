@@ -1,5 +1,4 @@
 
-import { createRoot } from 'react-dom/client';
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   LayoutDashboard, Calendar as CalendarIcon, Users, DollarSign, Plus, 
@@ -167,6 +166,12 @@ const App: React.FC = () => {
     const summaries = PARTNERS.map(p => {
       let deductions = 0;
       let hectaresPartner = 0;
+      const netProfitBase = Math.round(((totalRev - totalExp) / 4) * 100) / 100;
+      
+      const reimbursements = monthExpenses
+        .filter(e => e.paidBy === p.name)
+        .reduce((acc, e) => acc + e.amount, 0);
+
       if (p.name === 'Kaká' || p.name === 'Patrick') {
         const partnerClient = clients.find(c => c.partnerName === p.name);
         if (partnerClient) {
@@ -176,14 +181,13 @@ const App: React.FC = () => {
         }
       }
       
-      const netProfitBase = Math.round(((totalRev - totalExp) / 4) * 100) / 100;
-      
       return {
         name: p.fullName,
-        shortName: p.name,
+        shortName: p.name as any,
         grossProfit: netProfitBase,
         deductions: deductions,
-        netProfit: Math.round((netProfitBase - deductions) * 100) / 100,
+        reimbursements: reimbursements,
+        netProfit: Math.round((netProfitBase + reimbursements - deductions) * 100) / 100,
         salary: p.name === 'Geraldo' ? GERALDO_SALARY : undefined,
         hectares: hectaresPartner
       };
@@ -250,8 +254,16 @@ const App: React.FC = () => {
         partnerSummaries: calc.summaries,
         closedAt: new Date().toISOString()
       };
+      
       const { error } = await supabase.from('closed_months').insert([newClosedMonth]);
       if (error) throw error;
+      
+      // Marcar despesas originais como fechadas para segurança
+      const ids = calc.monthExpenses.map(e => e.id);
+      if (ids.length > 0) {
+        await supabase.from('expenses').update({ closed: true }).in('id', ids);
+      }
+
       setClosedMonths(prev => [...prev, newClosedMonth]);
       setIsClosingModalOpen(false);
       alert("Mês fechado com sucesso!");
@@ -264,6 +276,17 @@ const App: React.FC = () => {
     try {
       const { error } = await supabase.from('closed_months').delete().eq('monthYear', monthYear);
       if (error) throw error;
+      
+      // Desmarcar despesas como abertas
+      const parts = monthYear.split('/');
+      const mStart = startOfMonth(new Date(parseInt(parts[1]), parseInt(parts[0]) - 1));
+      const mEnd = endOfMonth(new Date(parseInt(parts[1]), parseInt(parts[0]) - 1));
+      
+      await supabase.from('expenses')
+        .update({ closed: false })
+        .gte('date', mStart.toISOString())
+        .lte('date', mEnd.toISOString());
+
       setClosedMonths(prev => prev.filter(m => m.monthYear !== monthYear));
       setIsClosingModalOpen(false);
     } catch (err: any) {
@@ -271,6 +294,7 @@ const App: React.FC = () => {
     }
   };
 
+  // Fix: Added handleLogout function to clear user session and local storage.
   const handleLogout = () => {
     localStorage.removeItem('df_user');
     setUser(null);
@@ -355,7 +379,7 @@ const App: React.FC = () => {
           {activeTab === 'agenda' && <AgendaView agenda={agenda} onAddAgenda={handleAddAgendaItem} onDeleteAgenda={handleDeleteAgendaItem} clients={clients} user={user} onEfetivar={(item) => { setSourceAgendaId(item.id); setPrefilledServiceData(item); setIsServiceFormOpen(true); }} />}
           {activeTab === 'calendar' && <CalendarView services={services} closedMonths={closedMonths} onOpenClosing={(info) => { setSelectedClosingInfo(info); setIsClosingModalOpen(true); }} onDeleteService={async (id) => { const { error } = await supabase.from('services').delete().eq('id', id); if (!error) setServices(services.filter(s => s.id !== id)); }} />}
           {activeTab === 'clients' && <ClientManager clients={clients} setClients={handleSetClients} onDeleteClient={handleDeleteClient} />}
-          {activeTab === 'expenses' && <ExpenseManager expenses={expenses} setExpenses={handleSetExpenses} onDeleteExpense={handleDeleteExpense} />}
+          {activeTab === 'expenses' && <ExpenseManager expenses={expenses} setExpenses={handleSetExpenses} onDeleteExpense={handleDeleteExpense} closedMonths={closedMonths} />}
           {activeTab === 'partners' && <PartnerBalance summaries={currentMonthData.summaries} contributions={contributions} onAddContribution={handleAddContribution} onDeleteContribution={handleDeleteContribution} />}
           {activeTab === 'ai' && <AICalculator />}
           {activeTab === 'history' && <HistoryView closedMonths={closedMonths} onReopenMonth={handleReopenMonth} />}
@@ -397,13 +421,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
-const container = document.getElementById('root');
-if (container) {
-  const root = createRoot(container);
-  root.render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>
-  );
-}
